@@ -1,0 +1,11 @@
+--- a/Block.pm	2026-08-25 00:26:55.902951886 -0700
++++ b/Block.pm	2026-08-25 00:29:22.909558453 -0700
+@@ -173,6 +173,8 @@ sub get_partition_dev {
+         return "${dev}$partnum";
+     } elsif ($dev =~ m|^/dev/nvme\d+n\d+$|) {
+         return "${dev}p$partnum";
++    } elsif ($dev =~ m|^/dev/mmcblk\d+$|) {
++        return "${dev}p$partnum";
+     } else {
+         die "unable to get device for partition $partnum on device $dev\n";
+     }

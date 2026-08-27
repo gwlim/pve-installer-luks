@@ -1,0 +1,110 @@
+--- a/Install.pm
++++ b/Install.pm
+@@ -7,6 +7,7 @@ use Cwd 'abs_path';
+ use Encode;
+ use POSIX ":sys_wait_h";
+ 
++use Data::Dumper;
+ use Proxmox::Install::ISOEnv;
+ use Proxmox::Install::RunEnv;
+ 
+@@ -898,13 +899,14 @@ sub extract_data {
+                 my $devname = @$hd[1];
+                 my $logical_bsize = @$hd[4];
+ 
+-                my ($size, $osdev, $efidev) =
++                my ($size, $osdev, $efidev, $bootdev) =
+                     partition_bootable_disk($devname, $hdsize, '8300');
+                 $rootdev = $osdev if !defined($rootdev); # simply point to first disk
+                 my $by_id = Proxmox::Sys::Block::get_disk_by_id_path($devname);
+                 push @$bootdevinfo,
+                     {
+                         esp => $efidev,
++                        bootdev => $bootdev,
+                         devname => $devname,
+                         osdev => $osdev,
+                         by_id => $by_id,
+@@ -935,12 +937,13 @@ sub extract_data {
+                 my $devname = @$hd[1];
+                 my $logical_bsize = @$hd[4];
+ 
+-                my ($size, $osdev, $efidev) =
++                my ($size, $osdev, $efidev, $bootdev) =
+                     partition_bootable_disk($devname, $hdsize, 'BF01');
+ 
+                 push @$bootdevinfo,
+                     {
+                         esp => $efidev,
++                        bootdev => $bootdev,
+                         devname => $devname,
+                         osdev => $osdev,
+                         logical_bsize => $logical_bsize,
+@@ -981,7 +984,7 @@ sub extract_data {
+ 
+             my $logical_bsize = Proxmox::Sys::Block::logical_blocksize($target_hd);
+ 
+-            my ($os_size, $osdev, $efidev) =
++            my ($os_size, $osdev, $efidev, $bootdev) =
+                 partition_bootable_disk($target_hd, $hdsize, '8E00');
+ 
+             Proxmox::Sys::Block::udevadm_trigger_block();
+@@ -990,6 +993,7 @@ sub extract_data {
+             push @$bootdevinfo,
+                 {
+                     esp => $efidev,
++                    bootdev => $bootdev,
+                     devname => $target_hd,
+                     osdev => $osdev,
+                     by_id => $by_id,
+@@ -1032,6 +1036,7 @@ sub extract_data {
+         } elsif ($use_btrfs) {
+             # do nothing
+         } else {
++            create_filesystem($bootdevinfo->[0]->{bootdev}, 'boot', $filesys, 0.05, $maxper, 0, 1);
+             create_filesystem($rootdev, 'root', $filesys, 0.05, $maxper, 0, 1);
+         }
+ 
+@@ -1049,6 +1054,9 @@ sub extract_data {
+         }
+ 
+         mkdir "$targetdir/boot";
++        my $boot_device = $bootdevinfo->[0]->{bootdev};
++        syscmd("mount -n $boot_device -o defaults $targetdir/boot") == 0
++            || die "unable to mount $bootdevinfo->[0]->{bootdev}\n";
+         mkdir "$targetdir/boot/efi";
+ 
+         mkdir "$targetdir/var";
+@@ -1280,6 +1288,7 @@ sub extract_data {
+             $fstab .= "UUID=$fsuuid / btrfs $mountopts 0 1\n";
+         } else {
+             my $root_mountopt = $fssetup->{$filesys}->{root_mountopt} || 'defaults';
++            $fstab .= "$boot_device /boot $filesys defaults,noatime 0 2\n";
+             $fstab .= "$rootdev / $filesys ${root_mountopt} 0 1\n";
+         }
+ 
+@@ -1434,6 +1443,25 @@ _EOD
+         # file does not exist)
+         file_write_all("$targetdir/var/lib/apt/extended_states", '');
+ 
++        my $encrypt = Proxmox::Install::Config::get_encrypt();
++        my $cryptuuid;
++        if ($encrypt) {
++            syscmd("echo GRUB_ENABLE_CRYPTODISK=y >> $targetdir/etc/default/grub");
++            my $cmd = "blkid -u filesystem -t TYPE=crypto_LUKS -o export";
++            run_command(
++                $cmd,
++                sub {
++                    my $line = shift;
++
++                    if ($line =~ m/^UUID=([A-Fa-f0-9\-]+)$/) {
++                        $cryptuuid = $1;
++                    }
++                    return;
++                },
++            );
++            syscmd("echo pve_crypt UUID=$cryptuuid none luks >> $targetdir/etc/crypttab");
++        }
++
+         # allow ssh root login
+         syscmd(
+             [

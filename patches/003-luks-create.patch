@@ -1,0 +1,77 @@
+--- a/Block.pm
++++ b/Block.pm
+@@ -3,6 +3,7 @@ package Proxmox::Sys::Block;
+ use strict;
+ use warnings;
+ 
++use Encode;
+ use File::Basename;
+ use IO::File;
+ use List::Util qw(first);
+@@ -230,6 +231,9 @@ sub partition_bootable_disk {
+     my $esp_size = $hdsize > 100 * 1024 * 1024 ? 1024 : 512; # MB
+     my $esp_end = $esp_size + 1;
+ 
++    my $boot_size = $hdsize > 100 * 1024 * 1024 ? 1024 : 512; # MB
++    my $boot_end = $esp_size + $boot_size + 1;
++
+     my $restricted_hdsize_mb = 0; # 0 ==> end of partition
+     if ($maxhdsizegb) {
+         my $maxhdsize = $maxhdsizegb * 1024 * 1024;
+@@ -257,11 +261,13 @@ sub partition_bootable_disk {
+ 
+     # 1 - BIOS boot partition (Grub Stage2): first free 1 MB
+     # 2 - EFI ESP: next free 512 or 1024 MB
+-    # 3 - OS/Data partition: rest, up to $maxhdsize in MB
++    # 3 - BOOT: next free 512 or 1024 MB
++    # 4 - OS/Data partition: rest, up to $maxhdsize in MB
+ 
+     my $grubbootdev = get_partition_dev($target_dev, 1);
+     my $efibootdev = get_partition_dev($target_dev, 2);
+-    my $osdev = get_partition_dev($target_dev, 3);
++    my $bootdev = get_partition_dev($target_dev, 3);
++    my $osdev = get_partition_dev($target_dev, 4);
+ 
+     my $pcmd = ['sgdisk'];
+ 
+@@ -269,11 +275,14 @@ sub partition_bootable_disk {
+     push @$pcmd, "-n${pnum}:1M:+${esp_size}M", "-t$pnum:EF00";
+ 
+     $pnum = 3;
+-    push @$pcmd, "-n${pnum}:${esp_end}M:${restricted_hdsize_mb}", "-t$pnum:$ptype";
++    push @$pcmd, "-n${pnum}:${esp_end}M:+${boot_size}M", "-t$pnum:$ptype";
++
++    $pnum = 4;
++    push @$pcmd, "-n${pnum}:${boot_end}M:${restricted_hdsize_mb}", "-t$pnum:$ptype";
+ 
+     push @$pcmd, $target_dev;
+ 
+-    my $os_size = $hdsize - $esp_end * 1024; # efi + 1M bios_boot + 1M alignment
++    my $os_size = $hdsize - $boot_end * 1024; # efi + 1M bios_boot + 1M alignment
+ 
+     syscmd($pcmd) == 0
+         || die "unable to partition harddisk '${target_dev}'\n";
+@@ -292,11 +301,21 @@ sub partition_bootable_disk {
+ 
+     udevadm_trigger_block();
+ 
+-    foreach my $part ($efibootdev, $osdev) {
++    foreach my $part ($efibootdev, $bootdev, $osdev) {
+         syscmd("dd if=/dev/zero of=$part bs=1M count=256") if -b $part;
+     }
+ 
+-    return ($os_size, $osdev, $efibootdev);
++    my $encrypt = Proxmox::Install::Config::get_encrypt();
++    my $plain = Proxmox::Install::Config::get_root_password('plain');
++    my $octets = encode("utf-8", $plain);
++
++    if ($encrypt) {
++        syscmd("cryptsetup luksFormat -q $osdev <<< $octets");
++        syscmd("cryptsetup luksOpen -q $osdev pve_crypt <<< $octets");
++        $osdev = "/dev/mapper/pve_crypt";
++    }
++
++    return ($os_size, $osdev, $efibootdev, $bootdev);
+ }
+ 
+ 1;

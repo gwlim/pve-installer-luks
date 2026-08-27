@@ -1,0 +1,20 @@
+--- a/Config.pm
++++ b/Config.pm
+@@ -65,6 +65,7 @@ my sub init_cfg {
+ 
+     my $initial = {
+         # installer behavior related
++        encrypt => 0,
+         autoreboot => 1,
+ 
+         # disk and filesystem related
+@@ -157,6 +158,9 @@ sub set_key {
+     $cfg->{$k} = $v;
+ }
+ 
++sub set_encrypt { set_key('encrypt', $_[0]); }
++sub get_encrypt { return get('encrypt'); }
++
+ sub set_autoreboot { set_key('autoreboot', $_[0]); }
+ sub get_autoreboot { return get('autoreboot'); }
+ 

@@ -1,0 +1,15 @@
+--- a/unconfigured.sh	2026-08-25 23:48:33.459121528 -0700
++++ b/unconfigured.sh	2026-08-25 23:50:27.534765174 -0700
+@@ -306,6 +306,12 @@ if [ $proxdebug -ne 0 ]; then
+     debugsh || true
+ fi
+ 
++apt install /tmp/cryptsetup_* \
++            /tmp/cryptsetup-bin_* \
++            /tmp/libcryptsetup12_* \
++            /tmp/keyutils_* \
++            /tmp/cryptsetup-initramfs_*
++
+ # add custom DHCP options for auto installer
+ if [ $start_auto_installer -ne 0 ]; then
+     echo "Preparing DHCP as potential source to get location of automatic-installation answer file"

@@ -1,0 +1,20 @@
+diff --git a/proxinstall b/proxinstall
+index 51efe79..3a3c377 100755
+--- a/proxinstall
++++ b/proxinstall
+@@ -1533,6 +1533,15 @@ sub create_hdoption_view {
+ 
+     my $hdsize_labeled_widgets = [];
+ 
++    my $encrypt_checkbox = Gtk3::CheckButton->new();
++    $encrypt_checkbox->signal_connect(
++        "toggled" => sub {
++            my $encrypt_cb = shift;
++            Proxmox::Install::Config::set_encrypt(!!$encrypt_cb->get_active());
++        },
++    );
++    push @$hdsize_labeled_widgets, ['encrypt', $encrypt_checkbox, 'Enable LUKS encryption'];
++
+     my $target_hd = Proxmox::Install::Config::get_target_hd();
+     my $hdsize = 0; # size compute
+     if (-b $target_hd) {

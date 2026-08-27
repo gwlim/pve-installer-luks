@@ -1,0 +1,12 @@
+--- a/Install.pm	2026-08-25 17:51:25.985637037 -0700
++++ b/Install.pm	2026-08-25 18:03:40.991584892 -0700
+@@ -1412,6 +1412,9 @@ _EOD
+         # file does not exist)
+         file_write_all("$targetdir/var/lib/apt/extended_states", '');
+ 
++        syscmd("rm $targetdir/etc/apt/sources.list.d/pve-enterprise.sources $targetdir/etc/apt/sources.list.d/ceph.sources");
++        syscmd("cp /opt/proxmox.sources /opt/ceph.sources $targetdir/etc/apt/sources.list.d/");
++
+         # allow ssh root login
+         syscmd(
+             [
