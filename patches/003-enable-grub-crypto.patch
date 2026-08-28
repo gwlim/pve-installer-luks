@@ -56,9 +56,15 @@
                      devname => $target_hd,
                      osdev => $osdev,
                      by_id => $by_id,
-@@ -1032,6 +1036,7 @@ sub extract_data {
+@@ -1028,10 +1032,11 @@ sub extract_data {
+         }
+ 
+         if ($use_zfs) {
+-            # do nothing
++            create_filesystem($bootdevinfo->[0]->{bootdev}, 'boot', 'ext4', 0.05, $maxper, 0, 1);
          } elsif ($use_btrfs) {
-             # do nothing
+-            # do nothing
++            create_filesystem($bootdevinfo->[0]->{bootdev}, 'boot', 'ext4', 0.05, $maxper, 0, 1);
          } else {
 +            create_filesystem($bootdevinfo->[0]->{bootdev}, 'boot', $filesys, 0.05, $maxper, 0, 1);
              create_filesystem($rootdev, 'root', $filesys, 0.05, $maxper, 0, 1);
@@ -74,7 +80,21 @@
          mkdir "$targetdir/boot/efi";
  
          mkdir "$targetdir/var";
-@@ -1280,6 +1288,7 @@ sub extract_data {
+@@ -1247,7 +1255,7 @@ sub extract_data {
+         my $fstab = "# <file system> <mount point> <type> <options> <dump> <pass>\n";
+ 
+         if ($use_zfs) {
+-            # do nothing
++            $fstab .= "$boot_device /boot ext4 defaults,noatime 0 2\n";
+         } elsif ($use_btrfs) {
+             my $fsuuid;
+             my $cmd = "blkid -u filesystem -t TYPE=btrfs -o export $rootdev";
+@@ -1276,10 +1284,11 @@ sub extract_data {
+             } elsif ($btrfs_opts->{compress} ne 'off') {
+                 $mountopts .= ",compress=$btrfs_opts->{compress}";
+             }
+-
++            $fstab .= "$boot_device /boot ext4 defaults,noatime 0 2\n";
              $fstab .= "UUID=$fsuuid / btrfs $mountopts 0 1\n";
          } else {
              my $root_mountopt = $fssetup->{$filesys}->{root_mountopt} || 'defaults';
@@ -102,9 +122,17 @@
 +                    return;
 +                },
 +            );
-+            syscmd("echo pve_crypt UUID=$cryptuuid none luks >> $targetdir/etc/crypttab");
++            syscmd("echo pve_crypt $cryptuuid none luks >> $targetdir/etc/crypttab");
 +        }
 +
          # allow ssh root login
          syscmd(
              [
+@@ -1715,6 +1743,7 @@ _EOD
+     syscmd("umount $targetdir/proc");
+     syscmd("umount $targetdir/sys/firmware/efi/efivars");
+     syscmd("umount $targetdir/sys");
++    syscmd("umount $targetdir/boot");
+     rmdir("$targetdir/mnt/hostrun");
+ 
+     if ($use_zfs) {
