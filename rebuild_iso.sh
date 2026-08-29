@@ -32,7 +32,7 @@ cp /var/cache/apt/archives/*.deb /opt/proxmox/packages/
 dd if=/tmp/${PROXMOX_ISO} bs=512 count=1 of=/root/proxmox.mbr
 
 xorriso -as mkisofs \
-     -o /iso/Repacked-${PROXMOX_ISO} \
+     -o /iso/${PROXMOX_ISO} \
      -r -V 'PVE' \
      --grub2-mbr /root/proxmox.mbr \
      --protective-msdos-label \
