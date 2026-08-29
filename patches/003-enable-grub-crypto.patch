@@ -122,7 +122,7 @@
 +                    return;
 +                },
 +            );
-+            syscmd("echo pve_crypt UUID=$cryptuuid none luks >> $targetdir/etc/crypttab");
++            syscmd("echo pve_crypt UUID=$cryptuuid none luks,initramfs,discard >> $targetdir/etc/crypttab");
 +        }
 +
          # allow ssh root login
