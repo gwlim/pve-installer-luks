@@ -51,7 +51,7 @@
  
      syscmd($pcmd) == 0
          || die "unable to partition harddisk '${target_dev}'\n";
-@@ -292,11 +301,21 @@ sub partition_bootable_disk {
+@@ -292,11 +301,23 @@ sub partition_bootable_disk {
  
      udevadm_trigger_block();
  
@@ -66,9 +66,11 @@
 +    my $octets = encode("utf-8", $plain);
 +
 +    if ($encrypt) {
++        my $cryptdev = $osdev;
++        $cryptdev =~ s/^.*[\/]//;
 +        syscmd("cryptsetup luksFormat -q $osdev <<< $octets");
-+        syscmd("cryptsetup luksOpen -q $osdev pve_crypt <<< $octets");
-+        $osdev = "/dev/mapper/pve_crypt";
++        syscmd("cryptsetup luksOpen -q $osdev ${cryptdev}_crypt <<< $octets");
++        $osdev = "/dev/mapper/${cryptdev}_crypt";
 +    }
 +
 +    return ($os_size, $osdev, $efibootdev, $bootdev);

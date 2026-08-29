@@ -102,33 +102,31 @@
              $fstab .= "$rootdev / $filesys ${root_mountopt} 0 1\n";
          }
  
-@@ -1434,6 +1443,25 @@ _EOD
+@@ -1434,6 +1443,23 @@ _EOD
          # file does not exist)
          file_write_all("$targetdir/var/lib/apt/extended_states", '');
  
 +        my $encrypt = Proxmox::Install::Config::get_encrypt();
-+        my $cryptuuid;
 +        if ($encrypt) {
 +            syscmd("echo GRUB_ENABLE_CRYPTODISK=y >> $targetdir/etc/default/grub");
-+            my $cmd = "blkid -u filesystem -t TYPE=crypto_LUKS -o export";
-+            run_command(
-+                $cmd,
-+                sub {
-+                    my $line = shift;
-+
-+                    if ($line =~ m/^UUID=([A-Fa-f0-9\-]+)$/) {
-+                        $cryptuuid = $1;
-+                    }
-+                    return;
-+                },
-+            );
-+            syscmd("echo pve_crypt UUID=$cryptuuid none luks,initramfs,discard >> $targetdir/etc/crypttab");
++            my $cmd = `blkid -u filesystem -t TYPE=crypto_LUKS`;
++            foreach my $line (split(/\n/, $cmd)) {
++                my $cryptuuid;
++                my $cryptdev;
++                if ($line =~ m/UUID="([A-Fa-f0-9\-]+)"/) {
++                    $cryptuuid = $1;
++                }
++                if ($line =~ m/^\/dev\/([a-z0-9]+): /) {
++                    $cryptdev = $1;
++                }
++                syscmd("echo ${cryptdev}_crypt UUID=$cryptuuid none luks,initramfs,discard,keyscript=decrypt_keyctl >> $targetdir/etc/crypttab");
++            }
 +        }
 +
          # allow ssh root login
          syscmd(
              [
-@@ -1715,6 +1743,7 @@ _EOD
+@@ -1715,6 +1741,7 @@ _EOD
      syscmd("umount $targetdir/proc");
      syscmd("umount $targetdir/sys/firmware/efi/efivars");
      syscmd("umount $targetdir/sys");
