@@ -1,3 +1,5 @@
-# PVE Installer Generator with LUKS LVM encryption
+# PVE Installer Generator with LUKS encryption
 
-![PVE LUKS Support](lvm-luks.png)
+![LVM LUKS Support](lvm-luks.png)
+
+![ZFS/BTRFS LUKS Support](zfs-luks.png)
