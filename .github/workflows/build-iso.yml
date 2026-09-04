@@ -1,0 +1,39 @@
+name: Build and Upload
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Create ISO directory
+        run: |
+          mkdir -p iso
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Pull and Run Privileged Container
+        run: |
+          docker pull ghcr.io/${{ github.repository }}:main
+          docker run --rm --privileged -v $(pwd)/iso:/iso ghcr.io/${{ github.repository }}:main bash rebuild_iso.sh
+
+      - name: Upload ISO to Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "build-${{ github.ref_name }}-${{ github.sha }}"
+          name: "Build ${{ github.ref_name }} ${{ env.BUILD_DATE }}"
+          files: |
+            ./iso/*.iso
