@@ -6,7 +6,7 @@ ENV PROXMOX_ISO_SHA256="4e88fe416df9b527624a175f24c9aa07c714d3332afb1ee3dbf38795
 
 RUN apt-get update -y && \
     apt-get install --no-install-recommends -y curl patch squashfs-tools xorriso && \
-    apt-get install --no-install-recommends -y --download-only cryptsetup cryptsetup-initramfs keyutils dropbear-initramfs openvswitch-switch uuid-runtime:amd64=2.41-5
+    apt-get install --no-install-recommends -y --download-only cryptsetup cryptsetup-initramfs keyutils dropbear-initramfs openvswitch-switch uuid-runtime
 
 RUN curl -L -O --output-dir /tmp/ ${PROXMOX_ISO_URL}${PROXMOX_ISO}
 
